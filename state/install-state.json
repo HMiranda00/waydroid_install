@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "updated_at": "2026-02-15T19:29:40Z",
+  "updated_at": "2026-02-15T19:38:07Z",
   "distro": {
     "name": "zorin",
     "codename": "noble"
@@ -10,6 +10,7 @@
     "blip_activity": ""
   },
   "completed_steps": [
-    "precheck_host"
+    "precheck_host",
+    "install_waydroid_base"
   ]
 }

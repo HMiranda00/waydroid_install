@@ -82,7 +82,21 @@ step_init_waydroid_gapps() {
   require_cmd waydroid
 
   if [ ! -d /var/lib/waydroid/images ] || [ -z "$(ls -A /var/lib/waydroid/images 2>/dev/null || true)" ]; then
-    run_sudo waydroid init -s GAPPS
+    local attempt max_attempts
+    max_attempts=3
+    for attempt in $(seq 1 "${max_attempts}"); do
+      log_info "Waydroid init attempt ${attempt}/${max_attempts}"
+      if run_sudo waydroid --details-to-stdout init -s GAPPS; then
+        break
+      fi
+      if [ "${attempt}" -lt "${max_attempts}" ]; then
+        log_warn "Waydroid init failed (attempt ${attempt}). Retrying in 10s..."
+        sleep 10
+      else
+        log_error "Waydroid init failed after ${max_attempts} attempts."
+        exit 1
+      fi
+    done
   else
     log_info "Waydroid images already present, skipping re-init."
   fi
