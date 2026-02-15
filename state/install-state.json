@@ -1,13 +1,15 @@
 {
   "schema": 1,
-  "updated_at": "",
+  "updated_at": "2026-02-15T19:29:40Z",
   "distro": {
-    "name": "",
-    "codename": ""
+    "name": "zorin",
+    "codename": "noble"
   },
   "runtime": {
     "blip_package": "",
     "blip_activity": ""
   },
-  "completed_steps": []
+  "completed_steps": [
+    "precheck_host"
+  ]
 }

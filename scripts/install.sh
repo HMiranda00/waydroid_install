@@ -33,8 +33,8 @@ step_precheck_host() {
   require_cmd awk
   require_cmd sed
   require_cmd grep
-  require_cmd systemctl
   require_cmd sudo
+  ensure_systemd_available
 
   detect_distro
   validate_wayland_or_x11
@@ -246,4 +246,3 @@ main() {
 }
 
 main "$@"
-

@@ -127,7 +127,7 @@ log_step_success() {
   local step="$1"
   local details="$2"
   {
-    printf "- %s `%s` OK: %s\n" "$(timestamp_utc)" "${step}" "${details}"
+    printf -- '- %s `%s` OK: %s\n' "$(timestamp_utc)" "${step}" "${details}"
   } >> "${STEP_LOG_FILE}"
 }
 
@@ -191,6 +191,22 @@ validate_wayland_or_x11() {
   log_warn "No graphical session variables detected (WAYLAND_DISPLAY/DISPLAY)."
 }
 
+ensure_systemd_available() {
+  if command -v systemctl >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if [ -f /run/.containerenv ] || [ -n "${FLATPAK_ID:-}" ] || ps -p 1 -o comm= 2>/dev/null | grep -qi "^bwrap$"; then
+    log_error "No systemd detected in this shell (container/Flatpak runtime)."
+    log_error "Run this installer from the host terminal session (outside Flatpak/Toolbox/Distrobox)."
+    log_error "Then rerun: ./scripts/install.sh"
+    exit 1
+  fi
+
+  log_error "Missing required command: systemctl"
+  exit 1
+}
+
 wait_for_waydroid_session() {
   local attempts="${1:-25}"
   local delay="${2:-2}"
@@ -203,4 +219,3 @@ wait_for_waydroid_session() {
   done
   return 1
 }
-
