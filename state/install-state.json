@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "updated_at": "",
+  "distro": {
+    "name": "",
+    "codename": ""
+  },
+  "runtime": {
+    "blip_package": "",
+    "blip_activity": ""
+  },
+  "completed_steps": []
+}
