@@ -14,6 +14,7 @@ STEP_PRECHECK="precheck_host"
 STEP_BASE_INSTALL="install_waydroid_base"
 STEP_INIT_GAPPS="init_waydroid_gapps"
 STEP_PREWARM="configure_prewarm_session"
+STEP_NETWORK_HEAL="configure_network_heal"
 STEP_BLIP_INSTALL="install_blip_from_play_store"
 STEP_LAUNCHER="create_blip_launcher"
 STEP_VALIDATE="validate_setup"
@@ -67,7 +68,7 @@ step_install_waydroid_base() {
   install_waydroid_repo
 
   run_sudo apt-get update
-  run_sudo apt-get install -y waydroid
+  run_sudo apt-get install -y waydroid weston
   run_sudo systemctl enable --now waydroid-container
 
   local waydroid_version
@@ -103,6 +104,7 @@ step_init_waydroid_gapps() {
 
   run_sudo systemctl restart waydroid-container
   waydroid session start || true
+  run_sudo waydroid prop set persist.waydroid.multi_windows true || true
 
   if ! wait_for_waydroid_session 30 2; then
     log_warn "Waydroid session did not report RUNNING yet. Continuing; launcher wrapper will retry at runtime."
@@ -142,6 +144,13 @@ EOF
 
   mark_step_completed "${STEP_PREWARM}"
   log_step_success "${STEP_PREWARM}" "Autostart prewarm configured at ${autostart_file}."
+}
+
+step_configure_network_heal() {
+  log_info "Step: configure Waydroid network heal"
+  "${SCRIPT_DIR}/setup-network-heal.sh"
+  mark_step_completed "${STEP_NETWORK_HEAL}"
+  log_step_success "${STEP_NETWORK_HEAL}" "Installed network heal timer/service for route table + NAT fixes."
 }
 
 detect_blip_package() {
@@ -250,6 +259,7 @@ main() {
   run_step "${STEP_BASE_INSTALL}" step_install_waydroid_base
   run_step "${STEP_INIT_GAPPS}" step_init_waydroid_gapps
   run_step "${STEP_PREWARM}" step_configure_prewarm_session
+  run_step "${STEP_NETWORK_HEAL}" step_configure_network_heal
   run_step "${STEP_BLIP_INSTALL}" step_install_blip_from_play_store
   run_step "${STEP_LAUNCHER}" step_create_launcher
   run_step "${STEP_VALIDATE}" step_validate_setup

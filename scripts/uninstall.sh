@@ -38,8 +38,10 @@ remove_path() {
 
 remove_user_artifacts() {
   remove_path "${HOME}/.local/share/applications/blip-waydroid.desktop"
+  remove_path "${HOME}/.local/share/applications/blip-waydroid-wayland.desktop"
   remove_path "${HOME}/.config/autostart/blip-waydroid-prewarm.desktop"
   remove_path "${HOME}/.local/bin/blip-waydroid-launch"
+  remove_path "${HOME}/.local/bin/blip-waydroid-wayland-launch"
   remove_path "${HOME}/.local/bin/blip-waydroid-prewarm"
   remove_path "${HOME}/.local/state/blip-waydroid"
   remove_path "${HOME}/.local/share/icons/blip-waydroid.svg"
@@ -54,6 +56,12 @@ remove_repo_state() {
 }
 
 remove_system_waydroid() {
+  run_sudo systemctl disable --now waydroid-network-heal.timer || true
+  run_sudo rm -f /etc/systemd/system/waydroid-network-heal.timer || true
+  run_sudo rm -f /etc/systemd/system/waydroid-network-heal.service || true
+  run_sudo rm -f /usr/local/sbin/waydroid-network-heal || true
+  run_sudo systemctl daemon-reload || true
+
   run_sudo systemctl disable --now waydroid-container || true
   run_sudo apt-get purge -y waydroid || true
   run_sudo apt-get autoremove -y || true

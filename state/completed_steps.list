@@ -1,2 +1,7 @@
 precheck_host
 install_waydroid_base
+init_waydroid_gapps
+configure_prewarm_session
+install_blip_from_play_store
+create_blip_launcher
+validate_setup

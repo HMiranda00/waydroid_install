@@ -1,16 +1,21 @@
 {
   "schema": 1,
-  "updated_at": "2026-02-15T19:38:07Z",
+  "updated_at": "2026-02-15T19:46:22Z",
   "distro": {
     "name": "zorin",
     "codename": "noble"
   },
   "runtime": {
-    "blip_package": "",
+    "blip_package": "net.blip.android",
     "blip_activity": ""
   },
   "completed_steps": [
     "precheck_host",
-    "install_waydroid_base"
+    "install_waydroid_base",
+    "init_waydroid_gapps",
+    "configure_prewarm_session",
+    "install_blip_from_play_store",
+    "create_blip_launcher",
+    "validate_setup"
   ]
 }

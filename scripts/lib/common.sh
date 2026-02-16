@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+COMMON_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${COMMON_LIB_DIR}/../.." && pwd)"
 DOCS_DIR="${ROOT_DIR}/docs"
 STATE_DIR="${ROOT_DIR}/state"
 STATE_FILE="${STATE_DIR}/install-state.json"

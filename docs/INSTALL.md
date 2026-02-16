@@ -8,6 +8,7 @@ It uses Waydroid with GAPPS, provides a native launcher icon, keeps step-by-step
 - Waydroid installation and GAPPS init.
 - Play Store flow to install Blip.
 - Native launcher at `~/.local/share/applications/blip-waydroid.desktop`.
+- Optional native-Wayland launcher at `~/.local/share/applications/blip-waydroid-wayland.desktop`.
 - Resume support with checkpoints in `state/install-state.json`.
 - Two uninstall modes:
   - `scripts/uninstall.sh --user-only`
@@ -23,7 +24,7 @@ It uses Waydroid with GAPPS, provides a native launcher icon, keeps step-by-step
 ## Install
 
 ```bash
-chmod +x scripts/install.sh scripts/create-launcher.sh scripts/uninstall.sh
+chmod +x scripts/install.sh scripts/create-launcher.sh scripts/uninstall.sh scripts/setup-network-heal.sh
 scripts/install.sh
 ```
 
@@ -54,6 +55,21 @@ Use the menu entry `Blip (Waydroid)` or run:
 ```
 
 This starts Waydroid session (if needed) and opens Blip directly.
+For native Wayland desktop sessions, use `Blip (Wayland)`.
+
+### X11 (NVIDIA/DaVinci workflow)
+
+If you keep your desktop on Xorg/X11, the launcher auto-starts a nested Weston session only for Waydroid.
+This keeps your main desktop in X11 while allowing Waydroid to run with Wayland.
+
+### Network persistence fix
+
+The installer configures a root timer (`waydroid-network-heal.timer`) that periodically heals:
+- missing default route in `table eth0` inside Android,
+- bridge attachment (`waydroid0`),
+- host forwarding/NAT rules.
+
+This avoids having to manually reapply network commands after closing/reopening Waydroid.
 
 ## Uninstall
 

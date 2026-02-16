@@ -7,7 +7,9 @@ source "${SCRIPT_DIR}/lib/common.sh"
 
 TEMPLATE_FILE="${ROOT_DIR}/templates/blip.desktop.tpl"
 WRAPPER_FILE="${HOME}/.local/bin/blip-waydroid-launch"
+WAYLAND_WRAPPER_FILE="${HOME}/.local/bin/blip-waydroid-wayland-launch"
 DESKTOP_FILE="${HOME}/.local/share/applications/blip-waydroid.desktop"
+WAYLAND_DESKTOP_FILE="${HOME}/.local/share/applications/blip-waydroid-wayland.desktop"
 ICON_FILE="${HOME}/.local/share/icons/blip-waydroid.svg"
 LAUNCH_LOG_DIR="${HOME}/.local/state/blip-waydroid"
 LAUNCH_LOG_FILE="${LAUNCH_LOG_DIR}/launcher.log"
@@ -27,37 +29,134 @@ cat > "${WRAPPER_FILE}" <<EOF
 set -euo pipefail
 LOG_DIR="\${HOME}/.local/state/blip-waydroid"
 LOG_FILE="\${LOG_DIR}/launcher.log"
+WESTON_LOG="\${LOG_DIR}/weston.log"
+WAYDROID_BIN="/usr/bin/waydroid"
+WESTON_BIN="/usr/bin/weston"
 mkdir -p "\${LOG_DIR}"
 printf "%s launcher start\n" "\$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "\${LOG_FILE}"
+export XDG_RUNTIME_DIR="\${XDG_RUNTIME_DIR:-/run/user/\$(id -u)}"
 
-if ! command -v waydroid >/dev/null 2>&1; then
+if [ ! -x "\${WAYDROID_BIN}" ]; then
   echo "Waydroid not installed." >&2
   exit 1
 fi
 
-waydroid session start >/dev/null 2>&1 || true
+if [ -z "\${WAYLAND_DISPLAY:-}" ] || [ ! -S "/run/user/\$(id -u)/\${WAYLAND_DISPLAY}" ]; then
+  if [ -n "\${DISPLAY:-}" ]; then
+    if [ ! -x "\${WESTON_BIN}" ]; then
+      echo "X11 detected and weston is missing. Install it: sudo apt-get install -y weston" >&2
+      exit 1
+    fi
+
+    WESTON_SOCKET="wayland-1"
+    if [ ! -S "/run/user/\$(id -u)/\${WESTON_SOCKET}" ]; then
+      nohup "\${WESTON_BIN}" --backend=x11-backend.so --socket="\${WESTON_SOCKET}" --xwayland --fullscreen >> "\${WESTON_LOG}" 2>&1 &
+      for _ in \$(seq 1 20); do
+        if [ -S "/run/user/\$(id -u)/\${WESTON_SOCKET}" ]; then
+          break
+        fi
+        sleep 1
+      done
+    fi
+
+    if [ ! -S "/run/user/\$(id -u)/\${WESTON_SOCKET}" ]; then
+      echo "Could not start Weston's Wayland socket. Check \${WESTON_LOG}" >&2
+      exit 1
+    fi
+    export WAYLAND_DISPLAY="\${WESTON_SOCKET}"
+    printf "%s using nested weston socket=%s\n" "\$(date -u +%Y-%m-%dT%H:%M:%SZ)" "\${WAYLAND_DISPLAY}" >> "\${LOG_FILE}"
+  else
+    echo "No graphical session detected (missing DISPLAY/WAYLAND_DISPLAY)." >&2
+    exit 1
+  fi
+fi
+
+"\${WAYDROID_BIN}" session start >/dev/null 2>&1 || true
 
 for _ in \$(seq 1 30); do
-  if waydroid status 2>/dev/null | grep -qi "Session:.*RUNNING"; then
+  if "\${WAYDROID_BIN}" status 2>/dev/null | grep -qi "Session:.*RUNNING"; then
     break
   fi
   sleep 1
 done
 
-if ! waydroid status 2>/dev/null | grep -qi "Session:.*RUNNING"; then
-  echo "Waydroid session is not running. Check ${LAUNCH_LOG_FILE}" >&2
+if ! "\${WAYDROID_BIN}" status 2>/dev/null | grep -qi "Session:.*RUNNING"; then
+  if "\${WAYDROID_BIN}" status 2>&1 | grep -qi "not initialized"; then
+    echo "Waydroid is not initialized. Run: sudo waydroid init -s GAPPS" >&2
+  else
+    echo "Waydroid session is not running. Check ${LAUNCH_LOG_FILE}" >&2
+  fi
   exit 1
 fi
 
-if ! waydroid shell pm list packages 2>/dev/null | sed 's/^package://g' | grep -Fxq "${PACKAGE_NAME}"; then
-  echo "Blip package (${PACKAGE_NAME}) not found. Install/update in Play Store once." >&2
-  exit 1
+# Ensure a visible surface exists in fresh boots (prevents blank Weston window).
+"\${WAYDROID_BIN}" show-full-ui >> "\${LOG_FILE}" 2>&1 &
+sleep 2
+
+pkg_seen=0
+for _ in \$(seq 1 25); do
+  if "\${WAYDROID_BIN}" app list 2>/dev/null | grep -Fq "packageName: ${PACKAGE_NAME}"; then
+    pkg_seen=1
+    break
+  fi
+  sleep 1
+done
+
+if [ "\${pkg_seen}" -ne 1 ]; then
+  printf "%s package_not_seen=%s\n" "\$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${PACKAGE_NAME}" >> "\${LOG_FILE}"
 fi
 
-waydroid app launch "${PACKAGE_NAME}" >> "\${LOG_FILE}" 2>&1
+launched=0
+for _ in \$(seq 1 20); do
+  if "\${WAYDROID_BIN}" app launch "${PACKAGE_NAME}" >> "\${LOG_FILE}" 2>&1; then
+    launched=1
+    break
+  fi
+  sleep 1
+done
+
+if [ "\${launched}" -ne 1 ]; then
+  # Fallback: open full UI once, then launch app again.
+  "\${WAYDROID_BIN}" show-full-ui >> "\${LOG_FILE}" 2>&1 || true
+  sleep 2
+  "\${WAYDROID_BIN}" app launch "${PACKAGE_NAME}" >> "\${LOG_FILE}" 2>&1
+fi
 EOF
 
 chmod +x "${WRAPPER_FILE}"
+
+cat > "${WAYLAND_WRAPPER_FILE}" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+LOG_DIR="\${HOME}/.local/state/blip-waydroid"
+LOG_FILE="\${LOG_DIR}/launcher-wayland.log"
+WAYDROID_BIN="/usr/bin/waydroid"
+mkdir -p "\${LOG_DIR}"
+printf "%s launcher start\n" "\$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "\${LOG_FILE}"
+export XDG_RUNTIME_DIR="\${XDG_RUNTIME_DIR:-/run/user/\$(id -u)}"
+
+if [ ! -x "\${WAYDROID_BIN}" ]; then
+  echo "Waydroid not installed." >&2
+  exit 1
+fi
+
+if [ -z "\${WAYLAND_DISPLAY:-}" ] || [ ! -S "/run/user/\$(id -u)/\${WAYLAND_DISPLAY}" ]; then
+  echo "Wayland session not detected. Use this launcher from a native Wayland login." >&2
+  exit 1
+fi
+
+"\${WAYDROID_BIN}" session start >/dev/null 2>&1 || true
+for _ in \$(seq 1 30); do
+  if "\${WAYDROID_BIN}" status 2>/dev/null | grep -qi "Session:.*RUNNING"; then
+    break
+  fi
+  sleep 1
+done
+
+"\${WAYDROID_BIN}" app launch "${PACKAGE_NAME}" >> "\${LOG_FILE}" 2>&1
+EOF
+
+chmod +x "${WAYLAND_WRAPPER_FILE}"
 
 if [ ! -f "${ICON_FILE}" ]; then
   cat > "${ICON_FILE}" <<'EOF'
@@ -79,7 +178,16 @@ sed \
   "${TEMPLATE_FILE}" > "${DESKTOP_FILE}"
 
 chmod 644 "${DESKTOP_FILE}"
+
+sed \
+  -e "s|Blip (Waydroid)|Blip (Wayland)|g" \
+  -e "s|Launch Blip directly inside Waydroid|Launch Blip on native Wayland session|g" \
+  -e "s|__BLIP_EXEC__|${WAYLAND_WRAPPER_FILE}|g" \
+  -e "s|__BLIP_ICON__|${ICON_FILE}|g" \
+  "${TEMPLATE_FILE}" > "${WAYLAND_DESKTOP_FILE}"
+
+chmod 644 "${WAYLAND_DESKTOP_FILE}"
 update-desktop-database "${HOME}/.local/share/applications" >/dev/null 2>&1 || true
 
-log_info "Launcher created at ${DESKTOP_FILE}"
+log_info "Launchers created at ${DESKTOP_FILE} and ${WAYLAND_DESKTOP_FILE}"
 append_runtime_log "launcher_created package=${PACKAGE_NAME} activity=${PACKAGE_ACTIVITY}"
